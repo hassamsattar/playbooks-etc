@@ -1,0 +1,157 @@
+---
+- name: Install php7.1 app packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  become: true
+  with_items:
+    - php7.1-bcmath
+    - php7.1-cli
+    - php7.1-curl
+    - php7.1-fpm
+    - php7.1-gd
+    - php-igbinary
+    - php-imagick
+    - php7.1-json
+    - php7.1-mbstring
+    - php7.1-mcrypt
+    - php7.1-mysql
+    - php7.1-memcached
+    - php-redis
+    - php7.1-sqlite3
+    - php7.1-soap
+    - php7.1-tidy
+    - php7.1-zip
+    - php7.1-xml
+    - php7.1-xmlrpc
+    - php7.1-xsl
+  notify: restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Install php7.1-snappy from the internet.
+  become: true
+  apt:
+    deb: https://github.com/marcelosousaalmeida/php-snappy-builddeb/releases/download/v0.0.1/php7.1-snappy_0.1.6-1_amd64.deb
+  notify: restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Install php7.1-amqp from the internet.
+  become: true
+  apt:
+    deb: https://github.com/marcelosousaalmeida/php-amqp-builddeb/releases/download/v0.0.1/php7.1-amqp_1.9.0-1_amd64.deb
+  notify: restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Install php7.1-mustache from the internet.
+  become: true
+  apt:
+    deb: https://github.com/marcelosousaalmeida/php-mustache-builddeb/releases/download/v0.7.3/php7.1-mustache_0.7.3-1_amd64.deb
+  notify: restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Install php7.1-couchbase from the internet.
+  become: true
+  apt:
+    deb: https://github.com/marcelosousaalmeida/php-couchbase-builddeb/releases/download/2.4.2/php7.1-couchbase_2.4.2-1_amd64.deb
+  notify: restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: PHP7.1 Jumia Group tweaks
+  template:
+    src: etc/php/7.1/mods-available/jumia_configs.ini
+    dest: /etc/php/7.1/mods-available/jumia_configs.ini
+    owner: root
+    group: root
+    mode: 0640
+  with_items: "{{ ventures }}"
+  loop_control:
+    loop_var: venture
+  notify:
+    - enable php module jumia_configs
+    - restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: couchbase.ini encoder tweak
+  lineinfile:
+    dest: /etc/php/7.1/mods-available/couchbase.ini
+    state: present
+    regexp: "couchbase.encoder.format.*"
+    line: "couchbase.encoder.format=igbinary"
+    create: true
+    mode: 0644
+  notify:
+    - restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Pools templates App
+  template:
+    src: etc/php/7.1/fpm/pool.d/app.conf
+    dest: /etc/php/7.1/fpm/pool.d/app-{{ env }}.conf
+    owner: root
+    group: root
+    mode: 0640
+  notify:
+    - restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Pools templates App Local
+  template:
+    src: etc/php/7.1/fpm/pool.d/app-local.conf
+    dest: /etc/php/7.1/fpm/pool.d/app-local-{{ env }}.conf
+    owner: root
+    group: root
+    mode: 0640
+  notify:
+    - restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1
+
+- name: Pools templates App Post
+  template:
+    src: etc/php/7.1/fpm/pool.d/app-post.conf
+    dest: /etc/php/7.1/fpm/pool.d/app-post-{{ env }}.conf
+    owner: root
+    group: root
+    mode: 0640
+  notify:
+    - restart php7.1-fpm
+  tags:
+    - app
+    - php
+    - php7
+    - php7.1

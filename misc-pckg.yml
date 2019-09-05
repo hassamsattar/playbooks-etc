@@ -1,0 +1,43 @@
+---
+- name: Disable resolv.conf update by dhclient
+  copy:
+    src:  nodnsupdate
+    dest: /etc/dhcp/dhclient-enter-hooks.d/nodnsupdate
+    owner: root
+    group: root
+    mode: 0755
+  when: "'Interxion-FRA6' not in [dc] and ansible_os_family == 'Debian' "
+  tags:
+    - resolv.conf
+
+- name: Disable resolv.conf update by dhclient
+  copy:
+    src:  nodnsupdate
+    dest: /etc/dhclient-enter-hooks
+    owner: root
+    group: root
+    mode: 0755
+  when: "'Interxion-FRA6' not in [dc] and ansible_os_family == 'Redhat' "
+  tags:
+    - resolv.conf
+
+- name: Install ctop
+  get_url:
+    url: https://github.com/bcicen/ctop/releases/download/v0.6.1/ctop-0.6.1-linux-amd64
+    backup: yes
+    dest: /usr/local/bin/ctop
+    mode: 0755
+    owner: root
+    group: root
+    sha256sum: a0e5e3b5cc0bb1905b756a8b817a727f71ea8fe645aba54c7324491efa73f96f
+  tags:
+    - ctop
+
+- name: Override root hardcoded PS1
+  lineinfile:
+    dest: /root/.bashrc
+    regexp: "^PS1="
+    line: 'PS1="${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "'
+    backup: yes
+  tags:
+    - ps1

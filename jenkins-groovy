@@ -1,0 +1,103 @@
+try {
+
+  stage('Checkout') {
+    checkout scm
+  }
+
+stage('Docker Ecr Login To AWS') {
+    sh '''
+   ecr get-login --no-include-email --region eu-central-1)
+    '''
+  }
+
+  stage('Prepare builder containers') {
+      parallel (
+          "Alice builder" : {
+            sh '''
+              docker build --pull=true -t hassam-alice-build ${PWD}/docker/alice/build/.
+            '''
+          },
+          "Bob builder" : {
+            sh '''
+              docker build --pull=true -t hassam-bob-build ${PWD}/docker/bob/build/.
+            '''
+          }
+      )
+  }
+
+  stage('Generate Alice code') {
+    sh '''
+      docker run -i --rm -v ${PWD}/:/app -e BRANCH_NAME=${BRANCH_NAME} hassam-alice-build
+    '''
+  }
+
+  stage('Generate Bob code') {
+    sh '''
+      docker run -i --rm -v ${PWD}/:/app -e BRANCH_NAME=${BRANCH_NAME} hassam-bob-build
+    '''
+  }
+
+  stage('Build containers') {
+    parallel (
+      "Alice container" : {
+        sh '''
+          rsync -ax --progress ${PWD}/hassam-alice.tar ${PWD}/docker/alice/run/hassam-alice.tar && \
+          sed -i "s#Path: HEAD#Path: ${BRANCH_NAME}-${BUILD_NUMBER}#" ${PWD}/alice/public/rev.txt && \
+          docker build --pull=true --label org.label-schema.vcs-ref=$(git rev-parse HEAD) -t hassam-alice-run ${PWD}/docker/alice/run/.
+        '''
+      },
+      "Bob container" : {
+        sh '''
+          rsync -ax --progress ${PWD}/hassam-bob.tar ${PWD}/docker/bob/run/hassam-bob.tar && \
+          sed -i "s#Path: HEAD#Path: ${BRANCH_NAME}-${BUILD_NUMBER}#" ${PWD}/bob/public/rev.txt && \
+          docker build --pull=true --label org.label-schema.vcs-ref=$(git rev-parse HEAD) -t hassam-bob-run ${PWD}/docker/bob/run/.
+        '''
+      }
+    )
+  }
+
+  stage('Push containers to Registry') {
+    env.DOCKER_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    env.DOCKER_TAG_LATEST = "${env.BRANCH_NAME}-latest"
+    parallel (
+          "Alice" : {
+            sh '''
+              docker tag hassam-alice-run2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG && \
+              docker tag hassam-alice-run2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG_LATEST && \
+              docker push2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG && \
+              docker push2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG_LATEST && \
+              docker rmi2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG_LATEST && \
+              docker rmi2321.dkr.ecr.eu-central-test.com/hassam/alice:$DOCKER_TAG
+            '''
+          },
+          "Bob" : {
+            sh '''
+              docker tag hassam-bob-run2321.dkr.ecr.eu-central-test.com/hassam/bob:$DOCKER_TAG && \
+              docker tag hassam-bob-run2321.dkr.ecr.eu-central-1.com/hassam/bob:$DOCKER_TAG_LATEST && \
+              docker push2321.dkr.ecr.eu-central-test.com/hassam/bob:$DOCKER_TAG && \
+              docker push2321.dkr.ecr.eu-central-test.com/hassam/bob:$DOCKER_TAG_LATEST && \
+              docker rmi2321.dkr.ecr.eu-central-test.com/hassam/bob:$DOCKER_TAG_LATEST && \
+              docker rmi2321.dkr.ecr.eu-central-test.com/hassam/bob:$DOCKER_TAG
+            '''
+          }
+      )
+  }
+
+} catch (err) {
+  print err.getMessage()
+  currentBuild.result = 'FAILURE'
+} finally {
+
+  stage('Change permissions') {
+    sh '''
+      docker run -i --rm -v ${PWD}/:/app debian chmod 777 /app -R
+    '''
+  }
+  step([
+    $class: 'WsCleanup',
+    deleteDirs: true,
+    patterns: [
+      [pattern: '.git/**', type: 'EXCLUDE']
+    ]
+  ])
+}
